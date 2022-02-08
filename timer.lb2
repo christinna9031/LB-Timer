@@ -1,0 +1,155 @@
+[extension_name]
+Timer
+[extension_info]
+Timer allows you to dynamically set and delete as many timers as you want
+[insert_external]
+<!--
+* @name: Timer, @version: 1.0, @author: Christina K. (LB2 Port by Chrizzz_1508 & Christina K.)
+* -->
+<div>
+<b>Timer by Christina K.</b>
+  <div>
+  <button id="LBTimerShow" class="btn btn-primary btn-sm mb-3 mt-3">View Active Timers</button>
+  </div>
+  <div id="LBtimersList" style="display:none"> 
+  </div>
+</div>
+[insert_command]
+LB.extCommand('Timer Add', 3355443, 52, {
+	'name': ['Timer Name',14,''],
+	'delay': ['Delay (in seconds)',15,''],
+    'triggerOnce': ['Trigger Only Once',2,false]
+	})
+LB.extCommand('Timer Delete', 3355443, 52, {
+	'name': ['Timer Name',14,''],
+	'deleteAll': ['Delete All Timers',2,false]
+	})
+LB.extCommand('Timer Get Value', 3355443, 52, {
+	'name': ['Timer Name',14,''],
+	'variable': ['Variable Name',14,''],
+    'global': ['Set as Global',2,false]
+	})
+LBTimersByK()
+[insert_hook]
+[insert_script]
+function LBTimersByK() {
+    const timerList = document.getElementById('LBtimersList');
+    const timerButton = document.getElementById('LBTimerShow');
+    let timers = []
+    let init = 0;
+    let timerInterval;
+    let showInterval;
+    let show = false;
+
+    lioranboardclient.on('Timer Add', (payload) => {
+        if (!payload.Data.name || !payload.Data.delay) {
+            LB.alert('Timer Extension Error: Name or delay not filled out.');
+            return;
+        }
+        timerAdd(payload.Data.name, payload.Data.delay, payload.Data.triggerOnce);
+    });
+
+    lioranboardclient.on('Timer Delete', (payload) => {
+        if (!payload.Data.name && !payload.Data.deleteAll) {
+            LB.alert('Timer Extension Error: Name not filled out.');
+            return;
+        }
+        timerDelete(payload.Data.name, payload.Data.deleteAll);
+    });
+
+    lioranboardclient.on('Timer Get Value', (payload) => {
+        if (!payload.Data.name || !payload.Data.variable ) {
+            LB.alert('Timer Extension Error: Name or variable not set. Cannot retrieve current delay.');
+            return;
+        }
+        timerGet(payload.Data.name, payload.Data.variable, payload.Data.global, payload.Data.FromButton);
+    });
+
+    timerButton.onclick = showTimers;
+
+    function timerGet (name, variable, global, fromButton) {
+    const i = timers.findIndex(t => t.name === name );
+    if (i === -1) {
+            LB.alert(`Timer Extension Error: Timer named ${name} does not exist. Cannot retrieve current delay.`);
+            return;
+        }
+    const buttonId = global ? 'global' : fromButton
+    const value = timers[i].value/1000
+    LB.setVariable(variable, value, buttonId)
+    }  
+
+    function timerAdd(name, delay, triggerOnce) {
+       const i = timers.findIndex(t => t.name === name );
+        if (i !== -1) {
+          LB.alert(`Timer Extension Error: Timer named ${name} is already active!`);
+            return;
+        }
+        timers.push ({name, delay: delay * 1000, value: delay * 1000, triggerOnce})
+        if (init === 0) {
+            init = 1;
+            timerInterval = setInterval(() => {
+              if (show) {
+                  timerList.innerHTML = '';
+                  timers.forEach((timer, index) => {
+                  const currentDelay = timer.value/1000-1;
+                  const formattedDelay = moment.utc(currentDelay * 1000).format('HH:mm:ss');
+                  timerList.innerHTML += (` ${timer.name} : ${formattedDelay}  <br/>`);
+                  });
+                }
+                timers.forEach(timer => timer.value = timer.value - 1000)
+                const filtered = timers.filter(timer => timer.value <= 0);
+                if (filtered.length > 0) {
+                filtered.forEach(timer => {
+                const i = timers.findIndex(t => t.name === timer.name );
+                timers[i].value = timers[i].delay; 
+                LB.triggerExt(timer.name);
+                if (timer.triggerOnce) {
+                timers.splice(i, 1);
+              }
+                })
+                if (timers.length < 1) {
+                timerDelete('all', true);
+                }
+                }
+
+            }, 1000);
+        }
+    }
+
+    function timerDelete(name, deleteAll) {
+        if (deleteAll) {
+            clearInterval(timerInterval);
+            timers = [];
+            init = 0;
+            timerList.innerHTML = 'No timers are currently active.';
+        } else {
+            const i = timers.findIndex(t => t.name === name );
+            if (i !== -1) {
+                timers.splice(i, 1);
+            }
+            if (timers.length < 1) {
+                timerDelete('all', true);
+            }
+        }
+    }
+
+    function showTimers() {
+        if (timerList.style.display === 'block') {
+        timerList.style.display = 'none'; timerList.innerHTML = '';
+        timerButton.innerHTML = 'View Active Timers';
+        show = false
+        return;
+        }
+        timerButton.innerHTML = 'Hide Active Timers';
+        timerList.style.display = 'block';
+        show = true
+
+        if (timers.length < 1) {
+            clearInterval(showInterval)
+            timerList.innerHTML = 'No timers are currently active.';
+        }
+    }
+}
+[insert_over]
+{ "deck_data": "{ \"background_color\": 4210752.0, \"on\": 1.0, \"grid_y\": 4.0, \"snap_grid\": true, \"lb_version\": \"2.05.3\", \"background_image\": \"\", \"encrypted\": 0.0, \"adaptive_resizing\": true, \"unique_id\": \"20220208000724504800189\", \"button_list\": [ { \"color\": 12608814.0, \"persistent\": 1.0, \"text\": \"Add 5s timer\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 6.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 148.0, \"b0\": \"Timer Name = unique name for your timer\\n(This is going to act as extension trigger for any button you want to trigger when timer hits 0) \\n\\nDelay = delay in seconds to set the timer to \\n\\nTrigger Only Once = whether you want to trigger the timer only once or repeatedly on an interval of whatever you set for Delay\\n(Select true to trigger it only once and false to trigger it repeatedly)\", \"v0\": 1.0 }, { \"cmd\": 0.0, \"triggerOnce\": false, \"obsid\": \"Main\", \"pos\": 1.0, \"delay\": \"5\", \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"extcmd\": \"Timer Add\", \"name\": \"5sTimer\", \"ext\": \"Transmitter\" } ], \"press_type\": 0.0, \"x\": 0.0, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.25, \"button_id\": \"ID33\", \"button_duration\": 0.0, \"y\": 0.0, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 }, { \"color\": 12631883.0, \"persistent\": 1.0, \"text\": \"5s button\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 6.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 21.0, \"b0\": \"This button will trigger every 5 seconds. \\nRight click on the button - Triggers. You can see the extension trigger added, which is the name of the Timer.\", \"v0\": 2.0 }, { \"cmd\": 142.0, \"obsid\": \"Main\", \"pos\": 1.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"Test alert - 5s Button\" }, { \"cmd\": 137.0, \"obsid\": \"Main\", \"pos\": 2.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"500\" } ], \"press_type\": 0.0, \"x\": 0.25, \"border\": 2.0, \"image\": \"\", \"triggers\": [ { \"case_sensitive\": 0.0, \"message\": \"5sTimer\", \"group_id\": \"\", \"button_id\": \"ID34\", \"trg\": 12.0, \"allow_empty_wildcard\": 0.0 } ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.49999999999999988897769753748435, \"button_id\": \"ID34\", \"button_duration\": 500.0, \"y\": 0.0, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 81.0, \"stretch\": 0.0 }, { \"color\": 2258880.0, \"persistent\": 1.0, \"text\": \"Delete 5s timer\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 6.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 61.0, \"b0\": \"This will completely delete currently ongoing timer. \\n\\nTimer Name = timer you wish to delete\\nDelete All Timers = check if you want to delete all timers\", \"v0\": 1.0 }, { \"cmd\": 0.0, \"deleteAll\": 0.0, \"obsid\": \"Main\", \"pos\": 1.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"extcmd\": \"Timer Delete\", \"name\": \"5sTimer\", \"ext\": \"Transmitter\" } ], \"press_type\": 0.0, \"x\": 0.75, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.25, \"button_id\": \"ID35\", \"button_duration\": 0.0, \"y\": 0.0, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 }, { \"color\": 12608814.0, \"persistent\": 1.0, \"text\": \"Add 10s timer\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 0.0, \"triggerOnce\": 0.0, \"obsid\": \"Main\", \"pos\": 0.0, \"delay\": \"10\", \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"extcmd\": \"Timer Add\", \"name\": \"10sTimer\", \"ext\": \"Transmitter\" } ], \"press_type\": 0.0, \"x\": 0.0, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.25, \"button_id\": \"ID36\", \"button_duration\": 0.0, \"y\": 0.25, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 }, { \"color\": 12631883.0, \"persistent\": 1.0, \"text\": \"10s button\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 142.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"Test alert - 10s Button\" }, { \"cmd\": 137.0, \"obsid\": \"Main\", \"pos\": 1.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"500\" } ], \"press_type\": 0.0, \"x\": 0.25, \"border\": 2.0, \"image\": \"\", \"triggers\": [ { \"case_sensitive\": 0.0, \"message\": \"10sTimer\", \"group_id\": \"\", \"button_id\": \"ID44\", \"trg\": 12.0, \"allow_empty_wildcard\": 0.0 } ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.49999999999999988897769753748435, \"button_id\": \"ID44\", \"button_duration\": 500.0, \"y\": 0.25, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 81.0, \"stretch\": 0.0 }, { \"color\": 2258880.0, \"persistent\": 1.0, \"text\": \"Delete 10s timer\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 0.0, \"deleteAll\": false, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"extcmd\": \"Timer Delete\", \"name\": \"10sTimer\", \"ext\": \"Transmitter\" } ], \"press_type\": 0.0, \"x\": 0.75, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 0.25, \"button_id\": \"ID45\", \"button_duration\": 0.0, \"y\": 0.25, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 }, { \"color\": 263310.0, \"persistent\": 1.0, \"text\": \"Delete All Timers\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 6.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"Check Delete All Timers to delete all timers.\", \"v0\": 1.0 }, { \"cmd\": 0.0, \"deleteAll\": true, \"obsid\": \"Main\", \"pos\": 1.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"extcmd\": \"Timer Delete\", \"name\": \"\", \"ext\": \"Transmitter\" } ], \"press_type\": 0.0, \"x\": 0.0, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 1.0, \"button_id\": \"ID47\", \"button_duration\": 0.0, \"y\": 0.5, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 }, { \"color\": 1687608.0, \"persistent\": 1.0, \"text\": \"Get Current Delay for 10s button\", \"release_duration\": 0.0, \"queueable\": 0.0, \"command_list\": [ { \"cmd\": 6.0, \"obsid\": \"Main\", \"pos\": 0.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 127.0, \"b0\": \"Retrieves the current delay of a timer. \\n\\nTimer Name = name of the timer to retrieve the delay of \\nVariable Name = variable name to save the delay in \\nSet As Global = check if you want to save it in a global variable\\n(otherwise it will be saved as a local variable for the current button that triggered the extension)\\n\", \"v0\": 4.0 }, { \"cmd\": 78.0, \"obsid\": \"Main\", \"pos\": 1.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"timer10sDelay\" }, { \"cmd\": 0.0, \"obsid\": \"Main\", \"pos\": 2.0, \"vis\": 1.0, \"ms\": 0.0, \"variable\": \"timer10sDelay\", \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"global\": false, \"extcmd\": \"Timer Get Value\", \"name\": \"10sTimer\", \"ext\": \"Transmitter\" }, { \"b1\": \"1000\", \"cmd\": 153.0, \"obsid\": \"Main\", \"pos\": 3.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"timer10sDelay\" }, { \"cmd\": 141.0, \"obsid\": \"Main\", \"pos\": 4.0, \"vis\": 1.0, \"ms\": 0.0, \"sel\": 0.0, \"dis\": 0.0, \"xpan\": 0.0, \"b0\": \"The current delay is \\\/$timer10sDelay$\\\/ seconds. \", \"v0\": false } ], \"press_type\": 0.0, \"x\": 0.0, \"border\": 2.0, \"image\": \"\", \"triggers\": [ ], \"group_id\": \"\", \"overlappable\": 0.0, \"init_variable\": \"\", \"deck\": 3.0, \"width\": 1.0, \"button_id\": \"ID48\", \"button_duration\": 0.0, \"y\": 0.75, \"switch_deck\": \"\", \"height\": 0.25, \"release_list\": [ ], \"functions\": 65.0, \"stretch\": 0.0 } ], \"deck_name\": \"Timers Examples\", \"grid_x\": 4.0, \"stretch\": 0.0 }", "unique_id": "20220208000724504800189", "deck_verification_code": "f26026ff33f6263db6fd14fbb9d2ead30575c4c0", "include_image": { } }
+
